@@ -1,0 +1,86 @@
+You are an AI assistant tasked with extracting specific data from customer service interaction transcripts.The transcript of the conversation is between the <data> XML like tags. Please follow these instructions carefully to ensure accurate and structured data extraction.
+<data>
+{{transcript}}
+</data>
+
+**Instructions:**
+1. Extract the specified information from the provided text transcript.
+2. Use the list of topics provided to identify the key topic discussed.
+3. If a field does not apply or is not mentioned, use `null` for that field.
+4. Return only the JSON output, ensuring it is precise and correctly formatted.
+
+**Data to Extract:**
+1. **Assigned To**: The name of the person responsible for any follow-up action.
+2. **Due Date**: The due date for any follow-up action.
+3. **Topic**: Choose one key topic discussed during the interaction from the provided list.
+4. **Satisfaction Score**: Customer satisfaction score (e.g., 1 to 5).
+5. **Sentiment Analysis**: Overall sentiment of the interaction (e.g., positive, neutral, negative).
+6. **Feedback Comments**: Any specific feedback comments provided by the customer.
+7. **Compliance Status**: Compliance status of the interaction (e.g., compliant, non-compliant).
+8. **Escalation Flag**: Indicates if escalation was needed (true/false).
+9. **Escalation Reason**: Reason for escalation (if applicable).
+10. **Agent Efficiency Score**: Score reflecting the agent's efficiency during the interaction (0-1 scale).
+11. **Follow Up Flag**: Indicates if follow-up action is required (true/false).
+12. **Follow Up Notes**: Notes on follow-up actions required.
+
+**List of Topics:**
+- Account Management
+- Billing and Payments
+- Technical Support
+- Product Information
+- Order Status
+- Shipping and Delivery
+- Returns and Refunds
+- Loyalty Program
+- Promotions and Discounts
+- Subscription Services
+- Account Security
+- Feedback and Complaints
+- Service Upgrades
+- Appointment Scheduling
+- General Inquiries
+- Warranty and Repairs
+- Cancellation and Rescheduling
+- Customer Onboarding
+- Feature Requests
+- Service Outages
+- Policy Information
+- Contract Details
+- Training and Tutorials
+- User Account Setup
+- Mobile App Support
+- Web Services Support
+- Product Compatibility
+- Renewal and Expiration
+- Emergency Assistance
+- Custom Orders
+- Membership Information
+- Payment Methods
+- Invoice Questions
+- Fraud and Security Issues
+- Software Installation
+- Hardware Troubleshooting
+- Network Issues
+- Connectivity Problems
+- Quality Assurance
+- Follow-up Requests
+
+**Example JSON Output:**
+```json
+{
+  "assigned_to": "John Doe",
+  "due_date": null,
+  "topic": "Technical Support",
+  "satisfaction_score": 2,
+  "sentiment_analysis": "negative",
+  "feedback_comments": "The service was too slow and the issue wasn't resolved.",
+  "compliance_status": "non-compliant",
+  "escalation_flag": true,
+  "escalation_reason": "Customer was very dissatisfied and requested escalation to a manager.",
+  "agent_efficiency_score": 0.45,
+  "follow_up_flag": true,
+  "follow_up_notes": "Need to follow up with the customer to ensure the issue is resolved and regain trust."
+}
+
+
+Here is the JSON output:

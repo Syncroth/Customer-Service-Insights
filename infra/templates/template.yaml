@@ -1,0 +1,220 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  Environment:
+    Description: Environment
+    Type: String
+  Project:
+    Description: Project name
+    Type: String
+  Version:
+    Description: Current project version
+    Type: String
+
+Globals:
+  Function:
+    Runtime: python3.8
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref "Environment"
+        VERSION: !Ref "Version"
+        PROJECT: !Ref "Project"
+  Api:
+    OpenApiVersion: 3.0.3
+    TracingEnabled: true
+
+Resources:
+  AudioBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: audio-reception-bucket
+
+  TranscriptionBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: transcription-bucket
+
+  MetadataTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: metadata
+      AttributeDefinitions:
+        - AttributeName: interaction_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: interaction_id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  InteractionTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: interaction
+      AttributeDefinitions:
+        - AttributeName: interaction_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: interaction_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  AudioQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: audio-queue
+
+  DataExtractionQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: data-extraction-queue
+
+  AudioProcessingApi:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      Name: !Sub "${Project}-${Environment}-${Version}"
+      StageName: !Ref "Environment"
+      DefinitionBody:
+        Fn::Transform:
+          Name: 'AWS::Include'
+          Parameters:
+            Location: infra/templates/api-specification.yaml
+
+  AudioReceptionFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: audio_reception/handler.lambda_handler
+      CodeUri: src/
+      MemorySize: 128
+      Timeout: 30
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3FullAccessPolicy:
+            BucketName: !Ref AudioBucket
+        - SQSSendMessagePolicy:
+            QueueName: !Ref AudioQueue
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetadataTable
+      Environment:
+        Variables:
+          AUDIO_BUCKET: !Ref AudioBucket
+          AUDIO_QUEUE: !Ref AudioQueue
+          METADATA_TABLE: !Ref MetadataTable
+      Events:
+        UploadEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AudioProcessingApi
+            Path: /upload
+            Method: post
+
+  TranscriptionFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: transcription/handler.lambda_handler
+      CodeUri: src/
+      MemorySize: 256
+      Timeout: 60
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3ReadPolicy:
+            BucketName: !Ref TranscriptionBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetadataTable
+      Environment:
+        Variables:
+          AUDIO_BUCKET: !Ref AudioBucket
+          TRANSCRIPTION_BUCKET: !Ref TranscriptionBucket
+          METADATA_TABLE: !Ref MetadataTable
+
+  DataExtractionFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: data_extraction/handler.lambda_handler
+      CodeUri: src/
+      MemorySize: 256
+      Timeout: 60
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - SQSSendMessagePolicy:
+            QueueName: !Ref DataExtractionQueue
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetadataTable
+      Environment:
+        Variables:
+          DATA_EXTRACTION_QUEUE: !Ref DataExtractionQueue
+      Events:
+        TranscriptionJobCompletionRule:
+          Type: 'CloudWatchEvent'
+          Properties:
+            Pattern:
+              source:
+                - 'aws.transcribe'
+              detail-type:
+                - 'Transcribe Job State Change'
+              detail:
+                TranscriptionJobStatus:
+                  - 'COMPLETED'
+
+  OutputHandlingFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: output_handling/handler.lambda_handler
+      CodeUri: src/
+      MemorySize: 256
+      Timeout: 60
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MetadataTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InteractionTable
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref TranscriptionBucket
+          METADATA_TABLE: !Ref MetadataTable
+          INTERACTION_TABLE: !Ref InteractionTable
+
+Outputs:
+  AudioProcessingApi:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${AudioProcessingApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/upload"
+  AudioReceptionFunction:
+    Description: 'Audio reception and initial processing Lambda function'
+    Value: !GetAtt AudioReceptionFunction.Arn
+  TranscriptionFunction:
+    Description: 'Transcription processing Lambda function'
+    Value: !GetAtt TranscriptionFunction.Arn
+  DataExtractionFunction:
+    Description: 'Data extraction Lambda function'
+    Value: !GetAtt DataExtractionFunction.Arn
+  OutputHandlingFunction:
+    Description: 'Output handling Lambda function'
+    Value: !GetAtt OutputHandlingFunction.Arn
+  AudioBucket:
+    Description: 'S3 bucket for audio files'
+    Value: !Ref AudioBucket
+  TranscriptionBucket:
+    Description: 'S3 bucket for transcription results'
+    Value: !Ref TranscriptionBucket
+  MetadataTable:
+    Description: 'DynamoDB table for metadata'
+    Value: !Ref MetadataTable
+  InteractionTable:
+    Description: 'DynamoDB table for interaction data'
+    Value: !Ref InteractionTable
+  AudioQueue:
+    Description: 'SQS queue for audio processing'
+    Value: !Ref AudioQueue
+  DataExtractionQueue:
+    Description: 'SQS queue for data extraction'
+    Value: !Ref DataExtractionQueue
+
