@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: "Audio Processing API"
+  version: "1.0"
+paths:
+  /upload:
+    post:
+      summary: "Upload audio file and metadata"
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio_file:
+                  type: string
+                  format: binary
+                interaction_id:
+                  type: string
+                customer_id:
+                  type: string
+                agent_id:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+                call_duration:
+                  type: integer
+                audio_format:
+                  type: string
+            required:
+              - audio_file
+              - interaction_id
+              - customer_id
+              - agent_id
+              - timestamp
+              - call_duration
+              - audio_format
+      responses:
+        "200":
+          description: "Audio and metadata received successfully"
+        "500":
+          description: "Failed to process request"
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AudioReceptionFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
