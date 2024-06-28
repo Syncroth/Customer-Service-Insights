@@ -22,22 +22,17 @@ The architecture of the Customer Service Insights project is illustrated in the 
 1. **Clone the repository**:
    ```sh
    git clone <https://github.com/Syncroth/Customer-Service-Insights.git>
+   ```
 
-```
+2. **Set up your environment**:
+   Navigate to the project directory and run the setup script.
+   ```sh
+   cd Customer-Service-Insights
+   ./scripts/setup_env.sh
+   ```
 
-1. **Set up your environment**:
-Navigate to the project directory and run the setup script.
-    
-    ```
-    cd Customer-Service-Insights
-    ./scripts/setup_env.sh
-    
-    ```
-    
-2. **Deploy the infrastructure**:
-Use the provided deployment script to set up the necessary AWS resources.
-    
-    ```
-    ./scripts/deploy.sh
-    
-    ```
+3. **Deploy the infrastructure**:
+   Use the provided deployment script to set up the necessary AWS resources.
+   ```sh
+   ./scripts/deploy.sh
+   ```
